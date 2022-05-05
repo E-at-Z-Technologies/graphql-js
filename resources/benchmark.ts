@@ -372,9 +372,9 @@ function sampleModule(modulePath: string): Promise<BenchmarkSample> {
 
     clock(7, benchmark.measure); // warm up
     global.gc();
-    process.nextTick(() => {
+    process.nextTick(async () => {
       const memBaseline = process.memoryUsage().heapUsed;
-      const clocked = clock(benchmark.count, benchmark.measure);
+      const clocked = await clock(benchmark.count, benchmark.measure);
       process.send({
         name: benchmark.name,
         clocked: clocked / benchmark.count,
@@ -383,10 +383,10 @@ function sampleModule(modulePath: string): Promise<BenchmarkSample> {
     });
 
     // Clocks the time taken to execute a test per cycle (secs).
-    function clock(count, fn) {
+    async function clock(count, fn) {
       const start = process.hrtime.bigint();
       for (let i = 0; i < count; ++i) {
-        fn();
+        await fn();
       }
       return Number(process.hrtime.bigint() - start);
     }
