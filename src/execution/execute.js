@@ -835,6 +835,11 @@ function completeValue(
   // If field type is Object, execute and complete all sub-selections.
   // istanbul ignore else (See: 'https://github.com/graphql/graphql-js/issues/2618')
   if (isObjectType(returnType)) {
+    if(exeContext.contextValue?.optimizeFlatResult === true) {
+      completeObjectFlat(result, returnType);
+      return result;
+    }
+    
     return completeObjectValue(
       exeContext,
       returnType,
@@ -851,6 +856,38 @@ function completeValue(
     'Cannot complete value of unexpected output type: ' +
       inspect((returnType: empty)),
   );
+}
+
+function completeObjectFlat(object, returnType) {
+  object.__typename = returnType.name;
+  for (var key in object) {
+    if (object.hasOwnProperty(key)) {
+      const value = object[key];
+      if (
+        typeof value === 'object' &&
+        value !== null
+      ) {
+        const field = returnType._fields[key];
+        const type = innerFieldType(field.type);
+        if (!!type._fields) {
+          if (Array.isArray(value)) {
+            value.forEach(v => completeObjectFlat(v, type));
+          }
+          else {
+            completeObjectFlat(value, type);
+          }
+        }
+      }
+    }
+  }
+}
+
+function innerFieldType(field) {
+  while (!!field.ofType) {
+    field = field.ofType;
+  }
+
+  return field;
 }
 
 /**
