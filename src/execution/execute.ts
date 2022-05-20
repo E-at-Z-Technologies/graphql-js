@@ -932,6 +932,10 @@ function completeValue(
 
   // If field type is Object, execute and complete all sub-selections.
   if (isObjectType(returnType)) {
+    if ((exeContext.contextValue as any)?.optimizeFlatResult === true) {
+      completeObjectFlat(result, returnType);
+      return result;
+    }
     return completeObjectValue(
       exeContext,
       returnType,
@@ -948,6 +952,41 @@ function completeValue(
     false,
     'Cannot complete value of unexpected output type: ' + inspect(returnType),
   );
+}
+
+
+function completeObjectFlat(object: any, returnType: GraphQLObjectType) {
+  object.__typename = returnType.name;
+  var fields = returnType.getFields();
+
+  for (var key in object) {
+    if (object.hasOwnProperty(key)) {
+      const value = object[key];
+      if (
+        typeof value === 'object' &&
+        value !== null
+      ) {
+        const field = fields[key];
+        const type = innerFieldType(field.type) as GraphQLObjectType;
+        if (!!fields) {
+          if (Array.isArray(value)) {
+            value.forEach(v => completeObjectFlat(v, type));
+          }
+          else {
+            completeObjectFlat(value, type);
+          }
+        }
+      }
+    }
+  }
+}
+
+function innerFieldType(type: GraphQLOutputType) {
+  while (!!(type as any).ofType) {
+    type = (type as any).ofType;
+  }
+
+  return type;
 }
 
 async function completePromisedValue(
@@ -1000,9 +1039,9 @@ function getStreamValues(
 ):
   | undefined
   | {
-      initialCount: number | undefined;
-      label: string | undefined;
-    } {
+    initialCount: number | undefined;
+    label: string | undefined;
+  } {
   // do not stream inner lists of multi-dimensional lists
   if (typeof path.key === 'number') {
     return;
@@ -1305,7 +1344,7 @@ function completeLeafValue(
   if (serializedResult == null) {
     throw new Error(
       `Expected \`${inspect(returnType)}.serialize(${inspect(result)})\` to ` +
-        `return non-nullable value, returned: ${inspect(serializedResult)}`,
+      `return non-nullable value, returned: ${inspect(serializedResult)}`,
     );
   }
   return serializedResult;
@@ -1393,7 +1432,7 @@ function ensureValidRuntimeType(
   if (typeof runtimeTypeName !== 'string') {
     throw new GraphQLError(
       `Abstract type "${returnType.name}" must resolve to an Object type at runtime for field "${info.parentType.name}.${info.fieldName}" with ` +
-        `value ${inspect(result)}, received "${inspect(runtimeTypeName)}".`,
+      `value ${inspect(result)}, received "${inspect(runtimeTypeName)}".`,
     );
   }
 
@@ -1800,7 +1839,7 @@ function assertEventStream(result: unknown): AsyncIterable<unknown> {
   if (!isAsyncIterable(result)) {
     throw new GraphQLError(
       'Subscription field must return Async Iterable. ' +
-        `Received: ${inspect(result)}.`,
+      `Received: ${inspect(result)}.`,
     );
   }
 
