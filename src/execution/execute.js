@@ -868,6 +868,8 @@ function completeObjectFlat(object, returnType) {
         value !== null
       ) {
         const field = returnType._fields[key];
+        if(!field) return;
+        
         const type = innerFieldType(field.type);
         if (!!type._fields) {
           if (Array.isArray(value)) {
