@@ -1,12 +1,11 @@
-import { invariant } from '../../jsutils/invariant';
-import type { ObjMap } from '../../jsutils/ObjMap';
+import { invariant } from '../../jsutils/invariant.js';
 
-import { GraphQLError } from '../../error/GraphQLError';
+import { GraphQLError } from '../../error/GraphQLError.js';
 
-import type { NameNode } from '../../language/ast';
-import type { ASTVisitor } from '../../language/visitor';
+import type { NameNode } from '../../language/ast.js';
+import type { ASTVisitor } from '../../language/visitor.js';
 
-import type { ASTValidationContext } from '../ValidationContext';
+import type { ASTValidationContext } from '../ValidationContext.js';
 
 /**
  * Unique input field names
@@ -19,14 +18,14 @@ import type { ASTValidationContext } from '../ValidationContext';
 export function UniqueInputFieldNamesRule(
   context: ASTValidationContext,
 ): ASTVisitor {
-  const knownNameStack: Array<ObjMap<NameNode>> = [];
-  let knownNames: ObjMap<NameNode> = Object.create(null);
+  const knownNameStack: Array<Map<string, NameNode>> = [];
+  let knownNames = new Map<string, NameNode>();
 
   return {
     ObjectValue: {
       enter() {
         knownNameStack.push(knownNames);
-        knownNames = Object.create(null);
+        knownNames = new Map();
       },
       leave() {
         const prevKnownNames = knownNameStack.pop();
@@ -36,15 +35,16 @@ export function UniqueInputFieldNamesRule(
     },
     ObjectField(node) {
       const fieldName = node.name.value;
-      if (knownNames[fieldName]) {
+      const knownName = knownNames.get(fieldName);
+      if (knownName != null) {
         context.reportError(
           new GraphQLError(
             `There can be only one input field named "${fieldName}".`,
-            { nodes: [knownNames[fieldName], node.name] },
+            { nodes: [knownName, node.name] },
           ),
         );
       } else {
-        knownNames[fieldName] = node.name;
+        knownNames.set(fieldName, node.name);
       }
     },
   };

@@ -1,17 +1,17 @@
-import { didYouMean } from '../../jsutils/didYouMean';
-import { suggestionList } from '../../jsutils/suggestionList';
+import { didYouMean } from '../../jsutils/didYouMean.js';
+import { suggestionList } from '../../jsutils/suggestionList.js';
 
-import { GraphQLError } from '../../error/GraphQLError';
+import { GraphQLError } from '../../error/GraphQLError.js';
 
-import { Kind } from '../../language/kinds';
-import type { ASTVisitor } from '../../language/visitor';
+import { Kind } from '../../language/kinds.js';
+import type { ASTVisitor } from '../../language/visitor.js';
 
-import { specifiedDirectives } from '../../type/directives';
+import { specifiedDirectives } from '../../type/directives.js';
 
 import type {
   SDLValidationContext,
   ValidationContext,
-} from '../ValidationContext';
+} from '../ValidationContext.js';
 
 /**
  * Known argument names
@@ -53,14 +53,17 @@ export function KnownArgumentNamesRule(context: ValidationContext): ASTVisitor {
 export function KnownArgumentNamesOnDirectivesRule(
   context: ValidationContext | SDLValidationContext,
 ): ASTVisitor {
-  const directiveArgs = Object.create(null);
+  const directiveArgs = new Map<string, ReadonlyArray<string>>();
 
   const schema = context.getSchema();
   const definedDirectives = schema
     ? schema.getDirectives()
     : specifiedDirectives;
   for (const directive of definedDirectives) {
-    directiveArgs[directive.name] = directive.args.map((arg) => arg.name);
+    directiveArgs.set(
+      directive.name,
+      directive.args.map((arg) => arg.name),
+    );
   }
 
   const astDefinitions = context.getDocument().definitions;
@@ -70,16 +73,19 @@ export function KnownArgumentNamesOnDirectivesRule(
       /* c8 ignore next */
       const argsNodes = def.arguments ?? [];
 
-      directiveArgs[def.name.value] = argsNodes.map((arg) => arg.name.value);
+      directiveArgs.set(
+        def.name.value,
+        argsNodes.map((arg) => arg.name.value),
+      );
     }
   }
 
   return {
     Directive(directiveNode) {
       const directiveName = directiveNode.name.value;
-      const knownArgs = directiveArgs[directiveName];
+      const knownArgs = directiveArgs.get(directiveName);
 
-      if (directiveNode.arguments && knownArgs) {
+      if (directiveNode.arguments != null && knownArgs != null) {
         for (const argNode of directiveNode.arguments) {
           const argName = argNode.name.value;
           if (!knownArgs.includes(argName)) {

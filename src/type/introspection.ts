@@ -1,10 +1,10 @@
-import { inspect } from '../jsutils/inspect';
-import { invariant } from '../jsutils/invariant';
+import { inspect } from '../jsutils/inspect.js';
+import { invariant } from '../jsutils/invariant.js';
 
-import { DirectiveLocation } from '../language/directiveLocation';
-import { print } from '../language/printer';
+import { DirectiveLocation } from '../language/directiveLocation.js';
+import { print } from '../language/printer.js';
 
-import { astFromValue } from '../utilities/astFromValue';
+import { astFromValue } from '../utilities/astFromValue.js';
 
 import type {
   GraphQLEnumValue,
@@ -13,7 +13,7 @@ import type {
   GraphQLInputField,
   GraphQLNamedType,
   GraphQLType,
-} from './definition';
+} from './definition.js';
 import {
   GraphQLEnumType,
   GraphQLList,
@@ -28,10 +28,10 @@ import {
   isObjectType,
   isScalarType,
   isUnionType,
-} from './definition';
-import type { GraphQLDirective } from './directives';
-import { GraphQLBoolean, GraphQLString } from './scalars';
-import type { GraphQLSchema } from './schema';
+} from './definition.js';
+import type { GraphQLDirective } from './directives.js';
+import { GraphQLBoolean, GraphQLString } from './scalars.js';
+import type { GraphQLSchema } from './schema.js';
 
 export const __Schema: GraphQLObjectType = new GraphQLObjectType({
   name: '__Schema',
@@ -112,7 +112,7 @@ export const __Directive: GraphQLObjectType = new GraphQLObjectType({
           },
         },
         resolve(field, { includeDeprecated }) {
-          return includeDeprecated
+          return includeDeprecated === true
             ? field.args
             : field.args.filter((arg) => arg.deprecationReason == null);
         },
@@ -266,7 +266,7 @@ export const __Type: GraphQLObjectType = new GraphQLObjectType({
         resolve(type, { includeDeprecated }) {
           if (isObjectType(type) || isInterfaceType(type)) {
             const fields = Object.values(type.getFields());
-            return includeDeprecated
+            return includeDeprecated === true
               ? fields
               : fields.filter((field) => field.deprecationReason == null);
           }
@@ -296,7 +296,7 @@ export const __Type: GraphQLObjectType = new GraphQLObjectType({
         resolve(type, { includeDeprecated }) {
           if (isEnumType(type)) {
             const values = type.getValues();
-            return includeDeprecated
+            return includeDeprecated === true
               ? values
               : values.filter((field) => field.deprecationReason == null);
           }
@@ -313,7 +313,7 @@ export const __Type: GraphQLObjectType = new GraphQLObjectType({
         resolve(type, { includeDeprecated }) {
           if (isInputObjectType(type)) {
             const values = Object.values(type.getFields());
-            return includeDeprecated
+            return includeDeprecated === true
               ? values
               : values.filter((field) => field.deprecationReason == null);
           }
@@ -351,7 +351,7 @@ export const __Field: GraphQLObjectType = new GraphQLObjectType({
           },
         },
         resolve(field, { includeDeprecated }) {
-          return includeDeprecated
+          return includeDeprecated === true
             ? field.args
             : field.args.filter((arg) => arg.deprecationReason == null);
         },

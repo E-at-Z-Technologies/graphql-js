@@ -1,9 +1,9 @@
 import { expect } from 'chai';
 import { describe, it } from 'mocha';
 
-import { expectJSON } from '../../__testUtils__/expectJSON';
+import { expectJSON } from '../../__testUtils__/expectJSON.js';
 
-import { parse } from '../../language/parser';
+import { parse } from '../../language/parser.js';
 
 import {
   assertInterfaceType,
@@ -11,13 +11,17 @@ import {
   GraphQLList,
   GraphQLObjectType,
   GraphQLUnionType,
-} from '../../type/definition';
-import { GraphQLBoolean, GraphQLString } from '../../type/scalars';
-import { GraphQLSchema } from '../../type/schema';
+} from '../../type/definition.js';
+import { GraphQLBoolean, GraphQLString } from '../../type/scalars.js';
+import { GraphQLSchema } from '../../type/schema.js';
 
-import { buildSchema } from '../../utilities/buildASTSchema';
+import { buildSchema } from '../../utilities/buildASTSchema.js';
 
-import { execute, executeSync } from '../execute';
+import { execute, executeSync } from '../execute.js';
+
+interface Context {
+  async: boolean;
+}
 
 async function executeQuery(args: {
   schema: GraphQLSchema;
@@ -30,13 +34,13 @@ async function executeQuery(args: {
     schema,
     document,
     rootValue,
-    contextValue: { async: false },
+    contextValue: { async: false } satisfies Context,
   });
   const asyncResult = await execute({
     schema,
     document,
     rootValue,
-    contextValue: { async: true },
+    contextValue: { async: true } satisfies Context,
   });
 
   expectJSON(result).toDeepEqual(asyncResult);
@@ -72,7 +76,7 @@ describe('Execute: Handles execution of abstract types', () => {
       },
     });
 
-    const DogType = new GraphQLObjectType({
+    const DogType = new GraphQLObjectType<Dog, { async: boolean }>({
       name: 'Dog',
       interfaces: [PetType],
       isTypeOf(obj, context) {
@@ -85,7 +89,7 @@ describe('Execute: Handles execution of abstract types', () => {
       },
     });
 
-    const CatType = new GraphQLObjectType({
+    const CatType = new GraphQLObjectType<Cat, { async: boolean }>({
       name: 'Cat',
       interfaces: [PetType],
       isTypeOf(obj, context) {
@@ -151,7 +155,7 @@ describe('Execute: Handles execution of abstract types', () => {
       },
     });
 
-    const DogType = new GraphQLObjectType({
+    const DogType = new GraphQLObjectType<Dog, Context>({
       name: 'Dog',
       interfaces: [PetType],
       isTypeOf(_source, context) {
@@ -167,7 +171,7 @@ describe('Execute: Handles execution of abstract types', () => {
       },
     });
 
-    const CatType = new GraphQLObjectType({
+    const CatType = new GraphQLObjectType<Cat, Context>({
       name: 'Cat',
       interfaces: [PetType],
       isTypeOf: undefined,
@@ -233,7 +237,7 @@ describe('Execute: Handles execution of abstract types', () => {
       },
     });
 
-    const DogType = new GraphQLObjectType({
+    const DogType = new GraphQLObjectType<Dog, Context>({
       name: 'Dog',
       interfaces: [PetType],
       isTypeOf(_source, context) {
@@ -280,7 +284,7 @@ describe('Execute: Handles execution of abstract types', () => {
   });
 
   it('isTypeOf used to resolve runtime type for Union', async () => {
-    const DogType = new GraphQLObjectType({
+    const DogType = new GraphQLObjectType<Dog, Context>({
       name: 'Dog',
       isTypeOf(obj, context) {
         const isDog = obj instanceof Dog;
@@ -292,7 +296,7 @@ describe('Execute: Handles execution of abstract types', () => {
       },
     });
 
-    const CatType = new GraphQLObjectType({
+    const CatType = new GraphQLObjectType<Cat, Context>({
       name: 'Cat',
       isTypeOf(obj, context) {
         const isCat = obj instanceof Cat;
@@ -353,7 +357,7 @@ describe('Execute: Handles execution of abstract types', () => {
   });
 
   it('resolveType can throw', async () => {
-    const PetType = new GraphQLInterfaceType({
+    const PetType = new GraphQLInterfaceType<Dog | Cat, Context>({
       name: 'Pet',
       resolveType(_source, context) {
         const error = new Error('We are testing this error');
@@ -367,7 +371,7 @@ describe('Execute: Handles execution of abstract types', () => {
       },
     });
 
-    const DogType = new GraphQLObjectType({
+    const DogType = new GraphQLObjectType<Dog, Context>({
       name: 'Dog',
       interfaces: [PetType],
       fields: {
@@ -376,7 +380,7 @@ describe('Execute: Handles execution of abstract types', () => {
       },
     });
 
-    const CatType = new GraphQLObjectType({
+    const CatType = new GraphQLObjectType<Cat, Context>({
       name: 'Cat',
       interfaces: [PetType],
       fields: {
@@ -505,7 +509,7 @@ describe('Execute: Handles execution of abstract types', () => {
 
       interface Pet {
         name: String
-        }
+      }
 
       type Cat implements Pet {
         name: String

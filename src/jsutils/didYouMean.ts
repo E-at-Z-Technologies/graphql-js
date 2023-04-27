@@ -1,4 +1,4 @@
-import { orList } from './formatList';
+import { orList } from './formatList.js';
 
 const MAX_SUGGESTIONS = 5;
 
@@ -23,7 +23,7 @@ export function didYouMean(
   }
 
   let message = ' Did you mean ';
-  if (subMessage) {
+  if (subMessage != null) {
     message += subMessage + ' ';
   }
 

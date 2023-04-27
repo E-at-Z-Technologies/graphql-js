@@ -1,12 +1,12 @@
 import { expect } from 'chai';
 import { describe, it } from 'mocha';
 
-import { dedent, dedentString } from '../../__testUtils__/dedent';
-import { kitchenSinkQuery } from '../../__testUtils__/kitchenSinkQuery';
+import { dedent, dedentString } from '../../__testUtils__/dedent.js';
+import { kitchenSinkQuery } from '../../__testUtils__/kitchenSinkQuery.js';
 
-import { Kind } from '../kinds';
-import { parse } from '../parser';
-import { print } from '../printer';
+import { Kind } from '../kinds.js';
+import { parse } from '../parser.js';
+import { print } from '../printer.js';
 
 describe('Printer: Query document', () => {
   it('prints minimal ast', () => {
@@ -110,6 +110,64 @@ describe('Printer: Query document', () => {
     `);
   });
 
+  it('puts large object values on multiple lines if line is long (> 80 chars)', () => {
+    const printed = print(
+      parse(
+        '{trip(obj:{wheelchair:false,smallObj:{a: 1},largeObj:{wheelchair:false,smallObj:{a: 1},arriveBy:false,includePlannedCancellations:true,transitDistanceReluctance:2000,anotherLongFieldName:"Lots and lots and lots and lots of text"},arriveBy:false,includePlannedCancellations:true,transitDistanceReluctance:2000,anotherLongFieldName:"Lots and lots and lots and lots of text"}){dateTime}}',
+      ),
+    );
+
+    expect(printed).to.equal(dedent`
+      {
+        trip(
+          obj: {
+            wheelchair: false
+            smallObj: { a: 1 }
+            largeObj: {
+              wheelchair: false
+              smallObj: { a: 1 }
+              arriveBy: false
+              includePlannedCancellations: true
+              transitDistanceReluctance: 2000
+              anotherLongFieldName: "Lots and lots and lots and lots of text"
+            }
+            arriveBy: false
+            includePlannedCancellations: true
+            transitDistanceReluctance: 2000
+            anotherLongFieldName: "Lots and lots and lots and lots of text"
+          }
+        ) {
+          dateTime
+        }
+      }
+    `);
+  });
+
+  it('puts large list values on multiple lines if line is long (> 80 chars)', () => {
+    const printed = print(
+      parse(
+        '{trip(list:[["small array", "small", "small"], ["Lots and lots and lots and lots of text", "Lots and lots and lots and lots of text", "Lots and lots and lots and lots of text"]]){dateTime}}',
+      ),
+    );
+
+    expect(printed).to.equal(dedent`
+      {
+        trip(
+          list: [
+            ["small array", "small", "small"]
+            [
+              "Lots and lots and lots and lots of text"
+              "Lots and lots and lots and lots of text"
+              "Lots and lots and lots and lots of text"
+            ]
+          ]
+        ) {
+          dateTime
+        }
+      }
+    `);
+  });
+
   it('Legacy: prints fragment with variable directives', () => {
     const queryASTWithVariableDirective = parse(
       'fragment Foo($foo: TestType @test) on TestType @testDirective { id }',
@@ -139,11 +197,17 @@ describe('Printer: Query document', () => {
   });
 
   it('prints kitchen sink without altering ast', () => {
-    const ast = parse(kitchenSinkQuery, { noLocation: true });
+    const ast = parse(kitchenSinkQuery, {
+      noLocation: true,
+      experimentalClientControlledNullability: true,
+    });
 
     const astBeforePrintCall = JSON.stringify(ast);
     const printed = print(ast);
-    const printedAST = parse(printed, { noLocation: true });
+    const printedAST = parse(printed, {
+      noLocation: true,
+      experimentalClientControlledNullability: true,
+    });
 
     expect(printedAST).to.deep.equal(ast);
     expect(JSON.stringify(ast)).to.equal(astBeforePrintCall);
@@ -161,6 +225,19 @@ describe('Printer: Query document', () => {
                 ...frag @onFragmentSpread
               }
             }
+            field3!
+            field4?
+            requiredField5: field5!
+            requiredSelectionSet(first: 10)! @directive {
+              field
+            }
+            unsetListItemsRequiredList: listField[]!
+            requiredListItemsUnsetList: listField[!]
+            requiredListItemsRequiredList: listField[!]!
+            unsetListItemsOptionalList: listField[]?
+            optionalListItemsUnsetList: listField[?]
+            optionalListItemsOptionalList: listField[?]?
+            multidimensionalList: listField[[[!]!]!]!
           }
           ... @skip(unless: $foo) {
             id

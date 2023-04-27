@@ -1,15 +1,15 @@
 import { expect } from 'chai';
 import { describe, it } from 'mocha';
 
-import { expectJSON } from '../../__testUtils__/expectJSON';
+import { expectJSON } from '../../__testUtils__/expectJSON.js';
 
-import { introspectionFromSchema } from '../../utilities/introspectionFromSchema';
+import { introspectionFromSchema } from '../../utilities/introspectionFromSchema.js';
 
-import { graphqlSync } from '../../graphql';
+import { graphqlSync } from '../../graphql.js';
 
-import { GraphQLEnumType, GraphQLObjectType } from '../definition';
-import { GraphQLBoolean, GraphQLInt, GraphQLString } from '../scalars';
-import { GraphQLSchema } from '../schema';
+import { GraphQLEnumType, GraphQLObjectType } from '../definition.js';
+import { GraphQLBoolean, GraphQLInt, GraphQLString } from '../scalars.js';
+import { GraphQLSchema } from '../schema.js';
 
 const ColorType = new GraphQLEnumType({
   name: 'Color',
@@ -71,12 +71,12 @@ const QueryType = new GraphQLObjectType({
         provideBadValue: { type: GraphQLBoolean },
       },
       resolve(_source, { fromEnum, provideGoodValue, provideBadValue }) {
-        if (provideGoodValue) {
+        if (provideGoodValue === true) {
           // Note: this is one of the references of the internal values which
           // ComplexEnum allows.
           return Complex2;
         }
-        if (provideBadValue) {
+        if (provideBadValue === true) {
           // Note: similar shape, but not the same *reference*
           // as Complex2 above. Enum internal values require === equality.
           return { someRandomValue: 123 };

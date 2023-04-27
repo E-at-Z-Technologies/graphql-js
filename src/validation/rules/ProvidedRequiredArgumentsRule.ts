@@ -1,22 +1,20 @@
-import { inspect } from '../../jsutils/inspect';
-import { keyMap } from '../../jsutils/keyMap';
-import type { ObjMap } from '../../jsutils/ObjMap';
+import { inspect } from '../../jsutils/inspect.js';
 
-import { GraphQLError } from '../../error/GraphQLError';
+import { GraphQLError } from '../../error/GraphQLError.js';
 
-import type { InputValueDefinitionNode } from '../../language/ast';
-import { Kind } from '../../language/kinds';
-import { print } from '../../language/printer';
-import type { ASTVisitor } from '../../language/visitor';
+import type { InputValueDefinitionNode } from '../../language/ast.js';
+import { Kind } from '../../language/kinds.js';
+import { print } from '../../language/printer.js';
+import type { ASTVisitor } from '../../language/visitor.js';
 
-import type { GraphQLArgument } from '../../type/definition';
-import { isRequiredArgument, isType } from '../../type/definition';
-import { specifiedDirectives } from '../../type/directives';
+import type { GraphQLArgument } from '../../type/definition.js';
+import { isRequiredArgument, isType } from '../../type/definition.js';
+import { specifiedDirectives } from '../../type/directives.js';
 
 import type {
   SDLValidationContext,
   ValidationContext,
-} from '../ValidationContext';
+} from '../ValidationContext.js';
 
 /**
  * Provided required arguments
@@ -65,16 +63,19 @@ export function ProvidedRequiredArgumentsRule(
 export function ProvidedRequiredArgumentsOnDirectivesRule(
   context: ValidationContext | SDLValidationContext,
 ): ASTVisitor {
-  const requiredArgsMap: ObjMap<
-    ObjMap<GraphQLArgument | InputValueDefinitionNode>
-  > = Object.create(null);
+  const requiredArgsMap = new Map<
+    string,
+    Map<string, GraphQLArgument | InputValueDefinitionNode>
+  >();
 
   const schema = context.getSchema();
   const definedDirectives = schema?.getDirectives() ?? specifiedDirectives;
   for (const directive of definedDirectives) {
-    requiredArgsMap[directive.name] = keyMap(
-      directive.args.filter(isRequiredArgument),
-      (arg) => arg.name,
+    requiredArgsMap.set(
+      directive.name,
+      new Map(
+        directive.args.filter(isRequiredArgument).map((arg) => [arg.name, arg]),
+      ),
     );
   }
 
@@ -85,9 +86,13 @@ export function ProvidedRequiredArgumentsOnDirectivesRule(
       /* c8 ignore next */
       const argNodes = def.arguments ?? [];
 
-      requiredArgsMap[def.name.value] = keyMap(
-        argNodes.filter(isRequiredArgumentNode),
-        (arg) => arg.name.value,
+      requiredArgsMap.set(
+        def.name.value,
+        new Map(
+          argNodes
+            .filter(isRequiredArgumentNode)
+            .map((arg) => [arg.name.value, arg]),
+        ),
       );
     }
   }
@@ -97,13 +102,13 @@ export function ProvidedRequiredArgumentsOnDirectivesRule(
       // Validate on leave to allow for deeper errors to appear first.
       leave(directiveNode) {
         const directiveName = directiveNode.name.value;
-        const requiredArgs = requiredArgsMap[directiveName];
-        if (requiredArgs) {
+        const requiredArgs = requiredArgsMap.get(directiveName);
+        if (requiredArgs != null) {
           // FIXME: https://github.com/graphql/graphql-js/issues/2203
           /* c8 ignore next */
           const argNodes = directiveNode.arguments ?? [];
           const argNodeMap = new Set(argNodes.map((arg) => arg.name.value));
-          for (const [argName, argDef] of Object.entries(requiredArgs)) {
+          for (const [argName, argDef] of requiredArgs.entries()) {
             if (!argNodeMap.has(argName)) {
               const argType = isType(argDef.type)
                 ? inspect(argDef.type)

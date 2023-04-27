@@ -1,11 +1,13 @@
 import { expect } from 'chai';
 import { describe, it } from 'mocha';
 
-import { dedent, dedentString } from '../../__testUtils__/dedent';
+import { dedent, dedentString } from '../../__testUtils__/dedent.js';
+import { viralSchema } from '../../__testUtils__/viralSchema.js';
+import { viralSDL } from '../../__testUtils__/viralSDL.js';
 
-import { DirectiveLocation } from '../../language/directiveLocation';
+import { DirectiveLocation } from '../../language/directiveLocation.js';
 
-import type { GraphQLFieldConfig } from '../../type/definition';
+import type { GraphQLFieldConfig } from '../../type/definition.js';
 import {
   GraphQLEnumType,
   GraphQLInputObjectType,
@@ -15,13 +17,17 @@ import {
   GraphQLObjectType,
   GraphQLScalarType,
   GraphQLUnionType,
-} from '../../type/definition';
-import { GraphQLDirective } from '../../type/directives';
-import { GraphQLBoolean, GraphQLInt, GraphQLString } from '../../type/scalars';
-import { GraphQLSchema } from '../../type/schema';
+} from '../../type/definition.js';
+import { GraphQLDirective } from '../../type/directives.js';
+import {
+  GraphQLBoolean,
+  GraphQLInt,
+  GraphQLString,
+} from '../../type/scalars.js';
+import { GraphQLSchema } from '../../type/schema.js';
 
-import { buildSchema } from '../buildASTSchema';
-import { printIntrospectionSchema, printSchema } from '../printSchema';
+import { buildSchema } from '../buildASTSchema.js';
+import { printIntrospectionSchema, printSchema } from '../printSchema.js';
 
 function expectPrintedSchema(schema: GraphQLSchema) {
   const schemaText = printSchema(schema);
@@ -595,21 +601,138 @@ describe('Type System Printer', () => {
     `);
   });
 
-  it('Prints an empty description', () => {
-    const schema = buildSingleFieldSchema({
-      type: GraphQLString,
+  it('Prints an empty descriptions', () => {
+    const args = {
+      someArg: { description: '', type: GraphQLString },
+      anotherArg: { description: '', type: GraphQLString },
+    };
+
+    const fields = {
+      someField: { description: '', type: GraphQLString, args },
+      anotherField: { description: '', type: GraphQLString, args },
+    };
+
+    const queryType = new GraphQLObjectType({
+      name: 'Query',
+      description: '',
+      fields,
+    });
+
+    const scalarType = new GraphQLScalarType({
+      name: 'SomeScalar',
       description: '',
     });
 
+    const interfaceType = new GraphQLInterfaceType({
+      name: 'SomeInterface',
+      description: '',
+      fields,
+    });
+
+    const unionType = new GraphQLUnionType({
+      name: 'SomeUnion',
+      description: '',
+      types: [queryType],
+    });
+
+    const enumType = new GraphQLEnumType({
+      name: 'SomeEnum',
+      description: '',
+      values: {
+        SOME_VALUE: { description: '' },
+        ANOTHER_VALUE: { description: '' },
+      },
+    });
+
+    const someDirective = new GraphQLDirective({
+      name: 'someDirective',
+      description: '',
+      args,
+      locations: [DirectiveLocation.QUERY],
+    });
+
+    const schema = new GraphQLSchema({
+      description: '',
+      query: queryType,
+      types: [scalarType, interfaceType, unionType, enumType],
+      directives: [someDirective],
+    });
+
     expectPrintedSchema(schema).to.equal(dedent`
+      """"""
+      schema {
+        query: Query
+      }
+      
+      """"""
+      directive @someDirective(
+        """"""
+        someArg: String
+
+        """"""
+        anotherArg: String
+      ) on QUERY
+
+      """"""
+      scalar SomeScalar
+
+      """"""
+      interface SomeInterface {
+        """"""
+        someField(
+          """"""
+          someArg: String
+
+          """"""
+          anotherArg: String
+        ): String
+
+        """"""
+        anotherField(
+          """"""
+          someArg: String
+
+          """"""
+          anotherArg: String
+        ): String
+      }
+
+      """"""
+      union SomeUnion = Query
+
+      """"""
       type Query {
         """"""
-        singleField: String
+        someField(
+          """"""
+          someArg: String
+
+          """"""
+          anotherArg: String
+        ): String
+
+        """"""
+        anotherField(
+          """"""
+          someArg: String
+
+          """"""
+          anotherArg: String
+        ): String
+      }
+
+      """"""
+      enum SomeEnum {
+        """"""
+        SOME_VALUE
+
+        """"""
+        ANOTHER_VALUE
       }
     `);
   });
 
-  it('Prints an description with only whitespace', () => {
+  it('Prints a description with only whitespace', () => {
     const schema = buildSingleFieldSchema({
       type: GraphQLString,
       description: ' ',
@@ -862,5 +985,9 @@ describe('Type System Printer', () => {
         INPUT_FIELD_DEFINITION
       }
     `);
+  });
+  it('prints viral schema correctly', () => {
+    const printed = printSchema(viralSchema);
+    expect(printed).to.equal(viralSDL);
   });
 });

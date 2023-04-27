@@ -1,24 +1,24 @@
-import { inspect } from '../../jsutils/inspect';
-import type { Maybe } from '../../jsutils/Maybe';
-import type { ObjMap } from '../../jsutils/ObjMap';
+import { inspect } from '../../jsutils/inspect.js';
+import type { Maybe } from '../../jsutils/Maybe.js';
 
-import { GraphQLError } from '../../error/GraphQLError';
+import { GraphQLError } from '../../error/GraphQLError.js';
 
 import type {
+  DirectiveNode,
   FieldNode,
   FragmentDefinitionNode,
   ObjectValueNode,
   SelectionSetNode,
-} from '../../language/ast';
-import { Kind } from '../../language/kinds';
-import { print } from '../../language/printer';
-import type { ASTVisitor } from '../../language/visitor';
+} from '../../language/ast.js';
+import { Kind } from '../../language/kinds.js';
+import { print } from '../../language/printer.js';
+import type { ASTVisitor } from '../../language/visitor.js';
 
 import type {
   GraphQLField,
   GraphQLNamedType,
   GraphQLOutputType,
-} from '../../type/definition';
+} from '../../type/definition.js';
 import {
   getNamedType,
   isInterfaceType,
@@ -26,12 +26,16 @@ import {
   isListType,
   isNonNullType,
   isObjectType,
-} from '../../type/definition';
+} from '../../type/definition.js';
 
-import { sortValueNode } from '../../utilities/sortValueNode';
-import { typeFromAST } from '../../utilities/typeFromAST';
+import { sortValueNode } from '../../utilities/sortValueNode.js';
+import { typeFromAST } from '../../utilities/typeFromAST.js';
 
-import type { ValidationContext } from '../ValidationContext';
+import type { ValidationContext } from '../ValidationContext.js';
+
+/* eslint-disable max-params */
+// This file contains a lot of such errors but we plan to refactor it anyway
+// so just disable it for entire file.
 
 function reasonMessage(reason: ConflictReasonMessage): string {
   if (Array.isArray(reason)) {
@@ -102,8 +106,8 @@ type NodeAndDef = [
   Maybe<GraphQLField<unknown, unknown>>,
 ];
 // Map of array of those.
-type NodeAndDefCollection = ObjMap<Array<NodeAndDef>>;
-type FragmentNames = Array<string>;
+type NodeAndDefCollection = Map<string, Array<NodeAndDef>>;
+type FragmentNames = ReadonlyArray<string>;
 type FieldsAndFragmentNames = readonly [NodeAndDefCollection, FragmentNames];
 
 /**
@@ -480,7 +484,7 @@ function collectConflictsWithin(
   // name and the value at that key is a list of all fields which provide that
   // response name. For every response name, if there are multiple fields, they
   // must be compared to find a potential conflict.
-  for (const [responseName, fields] of Object.entries(fieldMap)) {
+  for (const [responseName, fields] of fieldMap.entries()) {
     // This compares every field in the list to every other field in this list
     // (except to itself). If the list only has one item, nothing needs to
     // be compared.
@@ -524,9 +528,9 @@ function collectConflictsBetween(
   // response name. For any response name which appears in both provided field
   // maps, each field from the first field map must be compared to every field
   // in the second field map to find potential conflicts.
-  for (const [responseName, fields1] of Object.entries(fieldMap1)) {
-    const fields2 = fieldMap2[responseName];
-    if (fields2) {
+  for (const [responseName, fields1] of fieldMap1.entries()) {
+    const fields2 = fieldMap2.get(responseName);
+    if (fields2 != null) {
       for (const field1 of fields1) {
         for (const field2 of fields2) {
           const conflict = findConflict(
@@ -597,6 +601,17 @@ function findConflict(
     }
   }
 
+  // FIXME https://github.com/graphql/graphql-js/issues/2203
+  const directives1 = /* c8 ignore next */ node1.directives ?? [];
+  const directives2 = /* c8 ignore next */ node2.directives ?? [];
+  if (!sameStreams(directives1, directives2)) {
+    return [
+      [responseName, 'they have differing stream directives'],
+      [node1],
+      [node2],
+    ];
+  }
+
   // The return type for each field.
   const type1 = def1?.type;
   const type2 = def2?.type;
@@ -634,7 +649,7 @@ function findConflict(
   }
 }
 
-function stringifyArguments(fieldNode: FieldNode): string {
+function stringifyArguments(fieldNode: FieldNode | DirectiveNode): string {
   // FIXME https://github.com/graphql/graphql-js/issues/2203
   const args = /* c8 ignore next */ fieldNode.arguments ?? [];
 
@@ -647,6 +662,29 @@ function stringifyArguments(fieldNode: FieldNode): string {
     })),
   };
   return print(sortValueNode(inputObjectWithArgs));
+}
+
+function getStreamDirective(
+  directives: ReadonlyArray<DirectiveNode>,
+): DirectiveNode | undefined {
+  return directives.find((directive) => directive.name.value === 'stream');
+}
+
+function sameStreams(
+  directives1: ReadonlyArray<DirectiveNode>,
+  directives2: ReadonlyArray<DirectiveNode>,
+): boolean {
+  const stream1 = getStreamDirective(directives1);
+  const stream2 = getStreamDirective(directives2);
+  if (!stream1 && !stream2) {
+    // both fields do not have streams
+    return true;
+  } else if (stream1 && stream2) {
+    // check if both fields have equivalent streams
+    return stringifyArguments(stream1) === stringifyArguments(stream2);
+  }
+  // fields have a mix of stream and no stream
+  return false;
 }
 
 // Two types conflict if both types could not apply to a value simultaneously.
@@ -691,8 +729,8 @@ function getFieldsAndFragmentNames(
   if (cached) {
     return cached;
   }
-  const nodeAndDefs: NodeAndDefCollection = Object.create(null);
-  const fragmentNames: ObjMap<boolean> = Object.create(null);
+  const nodeAndDefs: NodeAndDefCollection = new Map();
+  const fragmentNames = new Set<string>();
   _collectFieldsAndFragmentNames(
     context,
     parentType,
@@ -700,7 +738,7 @@ function getFieldsAndFragmentNames(
     nodeAndDefs,
     fragmentNames,
   );
-  const result = [nodeAndDefs, Object.keys(fragmentNames)] as const;
+  const result = [nodeAndDefs, [...fragmentNames]] as const;
   cachedFieldsAndFragmentNames.set(selectionSet, result);
   return result;
 }
@@ -732,7 +770,7 @@ function _collectFieldsAndFragmentNames(
   parentType: Maybe<GraphQLNamedType>,
   selectionSet: SelectionSetNode,
   nodeAndDefs: NodeAndDefCollection,
-  fragmentNames: ObjMap<boolean>,
+  fragmentNames: Set<string>,
 ): void {
   for (const selection of selectionSet.selections) {
     switch (selection.kind) {
@@ -745,14 +783,17 @@ function _collectFieldsAndFragmentNames(
         const responseName = selection.alias
           ? selection.alias.value
           : fieldName;
-        if (!nodeAndDefs[responseName]) {
-          nodeAndDefs[responseName] = [];
+
+        let nodeAndDefsList = nodeAndDefs.get(responseName);
+        if (nodeAndDefsList == null) {
+          nodeAndDefsList = [];
+          nodeAndDefs.set(responseName, nodeAndDefsList);
         }
-        nodeAndDefs[responseName].push([parentType, selection, fieldDef]);
+        nodeAndDefsList.push([parentType, selection, fieldDef]);
         break;
       }
       case Kind.FRAGMENT_SPREAD:
-        fragmentNames[selection.name.value] = true;
+        fragmentNames.add(selection.name.value);
         break;
       case Kind.INLINE_FRAGMENT: {
         const typeCondition = selection.typeCondition;

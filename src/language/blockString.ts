@@ -1,4 +1,4 @@
-import { isWhiteSpace } from './characterClasses';
+import { isWhiteSpace } from './characterClasses.js';
 
 /**
  * Produces the value of a block string from its parsed raw value, similar to
@@ -23,7 +23,7 @@ export function dedentBlockStringLines(
       continue; // skip empty lines
     }
 
-    firstNonEmptyLine = firstNonEmptyLine ?? i;
+    firstNonEmptyLine ??= i;
     lastNonEmptyLine = i;
 
     if (i !== 0 && indent < commonIndent) {
@@ -122,7 +122,7 @@ export function printBlockString(
   value: string,
   options?: { minimize?: boolean },
 ): string {
-  const escapedValue = value.replace(/"""/g, '\\"""');
+  const escapedValue = value.replaceAll('"""', '\\"""');
 
   // Expand a block string's raw value into independent lines.
   const lines = escapedValue.split(/\r\n|[\n\r]/g);
